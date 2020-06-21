@@ -3,7 +3,6 @@ package com.julkali.glauncher.processing
 import android.util.Log
 import com.julkali.glauncher.io.database.AppLaunchEntry
 import com.julkali.glauncher.io.database.GestureDBHandler
-import com.julkali.glauncher.processing.compress.GestureCompressor
 import com.julkali.glauncher.processing.data.Coordinate
 import com.julkali.glauncher.processing.data.Gesture
 import com.julkali.glauncher.processing.data.Pointer
@@ -14,14 +13,10 @@ class ClosestGestureFinder(
 ) {
 
     private val TAG = "ClosestGestureFinder"
-    private val MIN_SCORE_THRESHOLD = 0.7
-    private val COMPRESSED_SIZE = 100
+    private val MIN_SCORE_THRESHOLD = 0.8
 
     private val gestureScoreCalculator =
         GestureScoreCalculator()
-    private val compressor = GestureCompressor(
-        COMPRESSED_SIZE
-    )
 
     fun closestGesture(gesture: Gesture): AppLaunchEntry? {
 
@@ -29,9 +24,7 @@ class ClosestGestureFinder(
         val scores = mutableMapOf<AppLaunchEntry, Double>()
         for (toCompareDoc in gestures) {
             val toCompare = toCompareDoc.gesture
-            val gestureCompressed = compressor.compress(gesture)
-            val toCompareCompressed = compressor.compress(toCompare)
-            val score = gestureScoreCalculator.calculate(gestureCompressed, toCompareCompressed)
+            val score = gestureScoreCalculator.calculate(gesture, toCompare)
             scores[toCompareDoc] = score
             Log.d(TAG, score.toString())
         }
@@ -42,16 +35,18 @@ class ClosestGestureFinder(
     }
 
     fun isLaunchGestureManagerGesture(gesture: Gesture): Boolean {
+        val swipe = ArrayList<Coordinate>(101)
+        for (i in 0..100) {
+            swipe.add(Coordinate(0.0, 1-(i/100.0)))
+        }
         val toCompare = Gesture(
             listOf(
                 Pointer(0, listOf(Coordinate(0.0, 1.0))),
                 Pointer(1, listOf(Coordinate(0.0, 1.0))),
-                Pointer(2, listOf(Coordinate(0.0, 1.0), Coordinate(0.0, 0.0)))
+                Pointer(2, swipe)
             )
         )
-        val gestureCompressed = compressor.compress(gesture)
-        val toCompareCompressed = compressor.compress(toCompare)
-        val score = gestureScoreCalculator.calculate(gestureCompressed, toCompareCompressed)
+        val score = gestureScoreCalculator.calculate(gesture, toCompare)
         return score >= MIN_SCORE_THRESHOLD
 
     }
